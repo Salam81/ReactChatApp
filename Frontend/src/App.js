@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import dummyAvatar from './avatar.png'
+import googleIcon from './google.png'
+
 import './App.css';
 
 import firebase from 'firebase/app';
@@ -19,20 +22,21 @@ firebase.initializeApp({
   appId: "1:250597409350:web:d591485272e721ed8e4047",
   measurementId: "G-BJGXNSQRV8"
 })
-firebase.analytics();
 
 const auth = firebase.auth();
 const firestore = firebase.firestore();
+firebase.analytics();
 
 function App() {
-
   const [user] = useAuthState(auth);
-
+  
   return (
     <div className="App">
-      <header className="App-header">
+      <header>
+        <h1>Chat App</h1>
         <SignOut />
       </header>
+
       <section>
         {user ? <ChatRoom /> : <SignIn /> }
       </section>
@@ -47,22 +51,33 @@ function SignIn(){
   }
 
   return(
-    <button onClick={signInWithGoogle}>Sign in with Google</button>
+    <button className="sign-in" onClick={signInWithGoogle}><img src={googleIcon} alt="Google"></img>Sign in with Google</button>
   )
 }
 
 function SignOut() {
   return auth.currentUser && (
-    <button onClick={() => auth.signOut()}>Sign Out</button>
+    <button className="sign-out" onClick={() => auth.signOut()}>Sign Out</button>
   )
 }
 
 function ChatRoom() {
+  const dummy = useRef(null);
+
   const messagesRef = firestore.collection('messages');
-  const query = messagesRef.orderBy('createdAt').limit(25);
+  const query = messagesRef.orderBy('createdAt', 'desc').limit(25);
 
   const [messages] = useCollectionData(query, {idField: 'id'});
   const [formValue, setFormValue] = useState('');
+  console.log(messages)
+
+  const scrollToBottom = () => {
+    dummy.current.scrollIntoView({behavior: 'smooth'});
+  }
+
+  useEffect(() => {
+    scrollToBottom();
+  });
 
   const sendMessage = async(e) => {
     e.preventDefault();
@@ -77,18 +92,22 @@ function ChatRoom() {
     });
 
     setFormValue('');
+    scrollToBottom();
   }
 
   return (
     <>
-      <div>
-        {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg}/>)}
-      </div>
+      <main>
+        {messages && messages.reverse().map(msg => <ChatMessage key={msg.id} message={msg} />)}
+      
+        <span ref={dummy}></span>
+
+      </main>
 
       <form onSubmit={sendMessage}>
-        <input value={formValue} onChange={(e) => setFormValue(e.target.value)} />
+        <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Type a message"/>
 
-        <button type="submit">Send</button>
+        <button type="submit" disabled={!formValue || formValue.replace(/^\s+/, '').replace(/\s+$/, '') === ''}>Send</button>
       </form>
     </>
   )
@@ -101,7 +120,7 @@ function ChatMessage(props) {
 
   return (
     <div className={`message ${messageClass}`}>
-      <img src={photoURL} alt="avatar" />
+      <img src={photoURL || dummyAvatar} alt="avatar" />
       <p>{text}</p>
     </div>
   )
